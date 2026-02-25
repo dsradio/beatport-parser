@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import os
+import re
 
 app = Flask(__name__)
 
@@ -26,23 +27,19 @@ def parse_beatport_track(url):
     
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # 1. Название трека (по классу, который ты нашёл)
+    # 1. Название трека
     name_elem = soup.find('h1', class_='TrackHeader-style__Name-sc-95024209-2')
     if not name_elem:
         name_elem = soup.find('h1', {'data-testid': 'trackTitle'})
     
-    # 2. Исполнитель (ищем по тегу a с атрибутом title)
+    # 2. Исполнитель
     artist_elem = soup.find('a', {'title': True})
-    # Уточняем: ищем ссылку, которая ведёт на страницу артиста
-    if artist_elem:
-        # Проверяем, что это действительно артист (href содержит /artist/)
-        if '/artist/' not in artist_elem.get('href', ''):
-            artist_elem = None
+    if artist_elem and '/artist/' not in artist_elem.get('href', ''):
+        artist_elem = None
     
-    # 3. Лейбл (по классу, который ты нашёл)
+    # 3. Лейбл
     label_elem = soup.find('div', class_='Marquee-style__MarqueeElement-sc-b0373cc7-0')
     if not label_elem:
-        # Если не нашли по классу, ищем ссылку на лейбл
         label_elem = soup.find('a', {'data-testid': 'labelLink'})
     
     # 4. Обложка
@@ -51,14 +48,41 @@ def parse_beatport_track(url):
         cover_elem = soup.find('img', class_='track-image')
     cover_url = cover_elem.get('src') if cover_elem else ''
     
+    # 5. Жанр
+    genre_elem = soup.find('a', {'title': True, 'href': re.compile(r'/genre/')})
+    genre = genre_elem.text.strip() if genre_elem else ''
+    
+    # 6. Длительность
+    duration = ''
+    for span in soup.find_all('span'):
+        text = span.text.strip()
+        if re.match(r'^\d+:\d{2}$', text):  # формат MM:SS или H:MM:SS
+            duration = text
+            break
+    
+    # 7. Дата релиза
+    release_date = ''
+    for span in soup.find_all('span'):
+        text = span.text.strip()
+        if re.match(r'^\d{4}$', text) or re.match(r'^\d{4}-\d{2}-\d{2}$', text):
+            release_date = text
+            break
+    
+    # 8. BPM
+    bpm = ''
+    for span in soup.find_all('span'):
+        text = span.text.strip()
+        if text.isdigit() and 60 <= int(text) <= 200:
+            bpm = text
+            break
+    
     # Извлекаем текст
     name = name_elem.text.strip() if name_elem else 'Неизвестно'
     artist = artist_elem.text.strip() if artist_elem else 'Неизвестно'
     label = label_elem.text.strip() if label_elem else ''
     
-    # Чистим название от лишних слов типа "Extended Mix" (они в отдельном теге span)
+    # Чистим название от Extended Mix и т.п.
     if name_elem:
-        # Убираем текст внутри span (обычно это Extended Mix, Original Mix и т.д.)
         span = name_elem.find('span')
         if span:
             name = name.replace(span.text, '').strip()
@@ -67,7 +91,10 @@ def parse_beatport_track(url):
         'name': name,
         'artist': artist,
         'label': label,
-        'releaseDate': '',
+        'genre': genre,
+        'duration': duration,
+        'releaseDate': release_date,
+        'bpm': bpm,
         'coverUrl': cover_url
     }
     
