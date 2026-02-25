@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # Добавляем CORS
+from flask_cors import CORS
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -7,7 +7,7 @@ import os
 import re
 
 app = Flask(__name__)
-CORS(app)  # Разрешаем запросы с любых доменов
+CORS(app)
 
 def parse_beatport_track(url):
     headers = {
@@ -78,16 +78,24 @@ def parse_beatport_track(url):
             bpm = text
             break
     
+    # Извлекаем текст
     name = name_elem.text.strip() if name_elem else 'Неизвестно'
     artist = artist_elem.text.strip() if artist_elem else 'Неизвестно'
     label = label_elem.text.strip() if label_elem else ''
     
+    # Чистим название от Extended Mix и т.п.
     if name_elem:
         span = name_elem.find('span')
         if span:
             name = name.replace(span.text, '').strip()
     
-    return {
+    # Извлекаем ID трека из ссылки
+    track_id = url.rstrip('/').split('/')[-1]
+    
+    # Формируем embed-код для плеера
+    embed_code = f'<iframe src="https://embed.beatport.com/?id={track_id}&type=track" width="100%" height="162" frameborder="0" scrolling="no" style="max-width:600px;"></iframe>'
+    
+    result = {
         'name': name,
         'artist': artist,
         'label': label,
@@ -95,8 +103,13 @@ def parse_beatport_track(url):
         'duration': duration,
         'releaseDate': release_date,
         'bpm': bpm,
-        'coverUrl': cover_url
+        'coverUrl': cover_url,
+        'embedCode': embed_code,
+        'trackId': track_id
     }
+    
+    print(f"Parsed result: {result}")
+    return result
 
 @app.route('/')
 def home():
