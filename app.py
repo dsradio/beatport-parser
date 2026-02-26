@@ -29,32 +29,40 @@ def parse_beatport_track(url):
     
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # Название трека
+    # === НАЗВАНИЕ ТРЕКА (теперь с Extended Mix и т.д.) ===
     name_elem = soup.find('h1', class_='TrackHeader-style__Name-sc-95024209-2')
     if not name_elem:
         name_elem = soup.find('h1', {'data-testid': 'trackTitle'})
     
-    # Исполнитель
+    if name_elem:
+        # get_text собирает ВЕСЬ текст, включая дочерние span (Extended Mix и т.д.)
+        name = name_elem.get_text(separator=' ', strip=True)
+    else:
+        name = 'Неизвестно'
+    
+    # === ИСПОЛНИТЕЛЬ ===
     artist_elem = soup.find('a', {'title': True})
     if artist_elem and '/artist/' not in artist_elem.get('href', ''):
         artist_elem = None
+    artist = artist_elem.text.strip() if artist_elem else 'Неизвестно'
     
-    # Лейбл
+    # === ЛЕЙБЛ ===
     label_elem = soup.find('div', class_='Marquee-style__MarqueeElement-sc-b0373cc7-0')
     if not label_elem:
         label_elem = soup.find('a', {'data-testid': 'labelLink'})
+    label = label_elem.text.strip() if label_elem else ''
     
-    # Обложка
+    # === ОБЛОЖКА ===
     cover_elem = soup.find('img', {'data-testid': 'trackImage'})
     if not cover_elem:
         cover_elem = soup.find('img', class_='track-image')
     cover_url = cover_elem.get('src') if cover_elem else ''
     
-    # Жанр
+    # === ЖАНР ===
     genre_elem = soup.find('a', {'title': True, 'href': re.compile(r'/genre/')})
     genre = genre_elem.text.strip() if genre_elem else ''
     
-    # Длительность
+    # === ДЛИТЕЛЬНОСТЬ ===
     duration = ''
     for span in soup.find_all('span'):
         text = span.text.strip()
@@ -62,7 +70,7 @@ def parse_beatport_track(url):
             duration = text
             break
     
-    # Дата релиза
+    # === ДАТА РЕЛИЗА ===
     release_date = ''
     for span in soup.find_all('span'):
         text = span.text.strip()
@@ -70,7 +78,7 @@ def parse_beatport_track(url):
             release_date = text
             break
     
-    # BPM
+    # === BPM ===
     bpm = ''
     for span in soup.find_all('span'):
         text = span.text.strip()
@@ -78,21 +86,10 @@ def parse_beatport_track(url):
             bpm = text
             break
     
-    # Извлекаем текст
-    name = name_elem.text.strip() if name_elem else 'Неизвестно'
-    artist = artist_elem.text.strip() if artist_elem else 'Неизвестно'
-    label = label_elem.text.strip() if label_elem else ''
-    
-    # Чистим название от Extended Mix и т.п.
-    if name_elem:
-        span = name_elem.find('span')
-        if span:
-            name = name.replace(span.text, '').strip()
-    
-    # Извлекаем ID трека из ссылки
+    # === ID ТРЕКА ===
     track_id = url.rstrip('/').split('/')[-1]
     
-    # Формируем embed-код для плеера
+    # === EMBED-КОД ПЛЕЕРА ===
     embed_code = f'<iframe src="https://embed.beatport.com/?id={track_id}&type=track" width="100%" height="162" frameborder="0" scrolling="no" style="max-width:600px;"></iframe>'
     
     result = {
