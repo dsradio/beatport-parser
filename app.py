@@ -63,33 +63,27 @@ def parse_beatport_track(url):
     
     # === ДЛИТЕЛЬНОСТЬ ===
     duration = ''
-    length_container = soup.find(lambda tag: tag.name == 'div' and 'Length:' in tag.text)
-    if length_container:
-        meta_item = length_container.parent
-        if meta_item:
-            span = meta_item.find('span')
-            if span:
-                duration = span.text.strip()
+    for span in soup.find_all('span'):
+        text = span.text.strip()
+        if re.match(r'^\d+:\d{2}$', text):
+            duration = text
+            break
     
     # === ДАТА РЕЛИЗА ===
     release_date = ''
-    released_container = soup.find(lambda tag: tag.name == 'div' and 'Released:' in tag.text)
-    if released_container:
-        meta_item = released_container.parent
-        if meta_item:
-            span = meta_item.find('span')
-            if span:
-                release_date = span.text.strip()
+    for span in soup.find_all('span'):
+        text = span.text.strip()
+        if re.match(r'^\d{4}$', text) or re.match(r'^\d{4}-\d{2}-\d{2}$', text):
+            release_date = text
+            break
     
-    # === BPM (ИСПРАВЛЕНО) ===
+    # === BPM ===
     bpm = ''
-    bpm_container = soup.find(lambda tag: tag.name == 'div' and 'BPM:' in tag.text)
-    if bpm_container:
-        meta_item = bpm_container.parent
-        if meta_item:
-            bpm_span = meta_item.find('span')
-            if bpm_span:
-                bpm = bpm_span.text.strip()
+    for span in soup.find_all('span'):
+        text = span.text.strip()
+        if text.isdigit() and 60 <= int(text) <= 200:
+            bpm = text
+            break
     
     # === ID ТРЕКА ===
     track_id = url.rstrip('/').split('/')[-1]
