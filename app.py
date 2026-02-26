@@ -29,13 +29,12 @@ def parse_beatport_track(url):
     
     soup = BeautifulSoup(response.text, 'html.parser')
     
-    # === НАЗВАНИЕ ТРЕКА (теперь с Extended Mix и т.д.) ===
+    # === НАЗВАНИЕ ТРЕКА ===
     name_elem = soup.find('h1', class_='TrackHeader-style__Name-sc-95024209-2')
     if not name_elem:
         name_elem = soup.find('h1', {'data-testid': 'trackTitle'})
     
     if name_elem:
-        # get_text собирает ВЕСЬ текст, включая дочерние span (Extended Mix и т.д.)
         name = name_elem.get_text(separator=' ', strip=True)
     else:
         name = 'Неизвестно'
@@ -64,27 +63,33 @@ def parse_beatport_track(url):
     
     # === ДЛИТЕЛЬНОСТЬ ===
     duration = ''
-    for span in soup.find_all('span'):
-        text = span.text.strip()
-        if re.match(r'^\d+:\d{2}$', text):
-            duration = text
-            break
+    length_container = soup.find(lambda tag: tag.name == 'div' and 'Length:' in tag.text)
+    if length_container:
+        meta_item = length_container.parent
+        if meta_item:
+            span = meta_item.find('span')
+            if span:
+                duration = span.text.strip()
     
     # === ДАТА РЕЛИЗА ===
     release_date = ''
-    for span in soup.find_all('span'):
-        text = span.text.strip()
-        if re.match(r'^\d{4}$', text) or re.match(r'^\d{4}-\d{2}-\d{2}$', text):
-            release_date = text
-            break
+    released_container = soup.find(lambda tag: tag.name == 'div' and 'Released:' in tag.text)
+    if released_container:
+        meta_item = released_container.parent
+        if meta_item:
+            span = meta_item.find('span')
+            if span:
+                release_date = span.text.strip()
     
-    # === BPM ===
+    # === BPM (ИСПРАВЛЕНО) ===
     bpm = ''
-    for span in soup.find_all('span'):
-        text = span.text.strip()
-        if text.isdigit() and 60 <= int(text) <= 200:
-            bpm = text
-            break
+    bpm_container = soup.find(lambda tag: tag.name == 'div' and 'BPM:' in tag.text)
+    if bpm_container:
+        meta_item = bpm_container.parent
+        if meta_item:
+            bpm_span = meta_item.find('span')
+            if bpm_span:
+                bpm = bpm_span.text.strip()
     
     # === ID ТРЕКА ===
     track_id = url.rstrip('/').split('/')[-1]
